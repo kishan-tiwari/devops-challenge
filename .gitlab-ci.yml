@@ -1,0 +1,35 @@
+image: node:14-latest
+
+stages:
+  - image-build
+  - test
+  - scan
+  - deploy
+
+image-build:
+  stage: image-build
+  script:
+    - docker build -t node-app:v1-latest .
+    - docker push  node-app:v1-latest
+
+test:
+  stage: test
+  script:
+    - docker run -dit --name node-app-test node-app:v1-latest 
+    - docker exec node-app-test  npm run test 
+    - docker rm node-app-test
+
+scan: 
+  stage: scan
+  script:
+    - npm install -g snyk
+    - snyk auth
+    - snyk container test  node-app:v1-latest
+
+deploy-prod:
+  image: bitnami/kubectl:latest
+  stage: deploy
+  only:
+    - main
+  script:
+    - kubectl apply -f k8s/deployment.yaml -n prod
